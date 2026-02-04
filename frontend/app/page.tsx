@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import StatusDisplay from '@/components/StatusDisplay';
 import QuickReport from '@/components/QuickReport';
+import BusyTimes from '@/components/BusyTimes';
 import { getStatus, StatusResponse } from '@/lib/api';
 
 export default function Home() {
@@ -81,6 +82,14 @@ export default function Home() {
             {/* Quick Report */}
             <div>
               <QuickReport onReportSubmitted={fetchStatus} />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-200 my-8 sm:my-12"></div>
+
+            {/* Busy Times */}
+            <div className="max-w-2xl mx-auto px-4">
+              <BusyTimes />
             </div>
           </>
         )}

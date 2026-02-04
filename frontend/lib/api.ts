@@ -9,8 +9,36 @@ export interface StatusResponse {
 }
 
 export interface ReportResponse {
-  message: string;
-  status: string;
+  success: boolean;
+  report: {
+    id: number;
+    status: string;
+    created_at: string;
+    has_photo: boolean;
+  };
+}
+
+export interface Photo {
+  id: number;
+  url: string;
+  createdAt: string;
+}
+
+export interface PhotoUploadResponse {
+  success: boolean;
+  photo: Photo & { reportId: number };
+}
+
+export interface HistoryResponse {
+  summary: string;
+  patterns: {
+    busyHours: number[];
+    busyDays: string[];
+    quietHours: number[];
+    quietDays: string[];
+  };
+  dataPoints: number;
+  periodDays: number;
 }
 
 // Map backend status to frontend status
@@ -88,5 +116,72 @@ export async function submitReport(status: string): Promise<ReportResponse> {
   } catch (error) {
     console.error('Error submitting report:', error);
     throw new Error('Unable to submit report. Please try again later.');
+  }
+}
+
+/**
+ * Upload a photo for a report
+ */
+export async function uploadPhoto(reportId: number, file: File): Promise<PhotoUploadResponse> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('reportId', reportId.toString());
+
+    const response = await fetch(`${API_URL}/api/photos`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to upload photo');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    throw error instanceof Error ? error : new Error('Unable to upload photo. Please try again.');
+  }
+}
+
+/**
+ * Get photos for a report
+ */
+export async function getPhotosForReport(reportId: number): Promise<Photo[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/photos/${reportId}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch photos');
+    }
+
+    const data = await response.json();
+    return data.photos;
+  } catch (error) {
+    console.error('Error fetching photos:', error);
+    return [];
+  }
+}
+
+/**
+ * Get historical patterns
+ */
+export async function getHistory(days: number = 7): Promise<HistoryResponse> {
+  try {
+    const response = await fetch(`${API_URL}/api/history?days=${days}`, {
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch history');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    throw new Error('Unable to fetch historical data. Please try again later.');
   }
 }
