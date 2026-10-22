@@ -14,9 +14,6 @@ npm-debug.log*
 # OS files
 .DS_Store
 
-# Uploads (local storage for photos)
-uploads/*
-!uploads/.gitkeep
 
 # Test coverage
 coverage/

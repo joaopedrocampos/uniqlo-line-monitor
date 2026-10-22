@@ -90,8 +90,7 @@ Submit a new line status report.
     "id": 123,
     "status": "no_line",
     "estimated_people": 5,
-    "created_at": "2024-01-01T12:00:00Z",
-    "has_photo": false
+    "created_at": "2024-01-01T12:00:00Z"
   },
   "currentStatus": {
     "status": "no_line",
@@ -103,7 +102,7 @@ Submit a new line status report.
 ```
 
 **Rate Limiting:**
-- 1 report per IP address per 15 minutes
+- 1 report per client per 15 minutes, keyed by a daily-rotating hash of the IP (raw IPs are never stored or logged)
 - Returns 429 status code if limit exceeded
 
 ### GET /api/report
@@ -120,15 +119,9 @@ Get all recent reports (for debugging/admin).
 - `status`: VARCHAR(20) - one of 'no_line', 'short_line', 'long_line'
 - `estimated_people`: INTEGER - optional count of people in line
 - `created_at`: TIMESTAMP - when the report was created
-- `ip_address`: VARCHAR(45) - IP address of the reporter (for rate limiting)
-- `has_photo`: BOOLEAN - whether this report has an associated photo
+- `ip_hash`: CHAR(64) - HMAC-SHA256 of the reporter's IP, keyed with `IP_HASH_SECRET` and the current date (for rate limiting only)
 
-### photos table (Phase 2)
-- `id`: Serial primary key
-- `report_id`: INTEGER - foreign key to reports table
-- `cloudinary_url`: TEXT - URL of the uploaded photo
-- `cloudinary_public_id`: VARCHAR(255) - Cloudinary identifier
-- `created_at`: TIMESTAMP - when the photo was uploaded
+Databases created before photos were removed can be updated with `src/db/migrations/001_remove_photos_hash_ips.sql`.
 
 ## Project Structure
 
@@ -143,7 +136,7 @@ backend/
 │   │   ├── status.js         # GET /api/status
 │   │   └── reports.js        # POST /api/report, GET /api/report
 │   └── middleware/
-│       └── rateLimit.js      # IP-based rate limiting
+│       └── rateLimit.js      # Rate limiting by hashed IP
 ├── .env.example              # Environment variable template
 ├── package.json              # Dependencies and scripts
 └── README.md                 # This file

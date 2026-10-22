@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db/index.js';
 import { reportRateLimit } from '../middleware/rateLimit.js';
+import { getClientHash } from '../utils/clientHash.js';
 
 const router = express.Router();
 
@@ -39,17 +40,17 @@ router.post('/', reportRateLimit, async (req, res) => {
       }
     }
 
-    // Get client IP address
-    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    // Hashed, daily-rotating client identifier (raw IPs are never stored)
+    const ipHash = getClientHash(req);
 
-    console.log(`New report: ${status} from IP ${ipAddress}`);
+    console.log(`New report: ${status}`);
 
     // Insert the report into the database
     const result = await query(
-      `INSERT INTO reports (status, estimated_people, ip_address, has_photo)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, status, estimated_people, created_at, has_photo`,
-      [status, estimatedPeople || null, ipAddress, false]
+      `INSERT INTO reports (status, estimated_people, ip_hash)
+       VALUES ($1, $2, $3)
+       RETURNING id, status, estimated_people, created_at`,
+      [status, estimatedPeople || null, ipHash]
     );
 
     const newReport = result.rows[0];
@@ -105,7 +106,7 @@ router.get('/', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     const result = await query(
-      `SELECT id, status, estimated_people, created_at, has_photo
+      `SELECT id, status, estimated_people, created_at
        FROM reports
        ORDER BY created_at DESC
        LIMIT $1 OFFSET $2`,

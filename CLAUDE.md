@@ -6,7 +6,7 @@ This file helps AI assistants understand and work with this codebase effectively
 
 **Uniqlo Munich Line Monitor** - A crowdsourced web app to check if there's a line at the Uniqlo store in Munich.
 
-**Status**: MVP complete with Phase 2 (photos) and Phase 3 (history patterns) implemented.
+**Status**: MVP complete with history patterns. Photo uploads were removed for privacy (photos of a queue show other people); don't reintroduce them. See ROADMAP.md for planned work.
 
 ## Quick Start
 
@@ -29,25 +29,19 @@ docker-compose up --build  # Rebuild after code changes
 │  (Next.js)  │     │  (Express)  │     │             │
 │  Port 3000  │     │  Port 3001  │     │  Port 5432  │
 └─────────────┘     └─────────────┘     └─────────────┘
-                           │
-                    ┌──────┴──────┐
-                    │   uploads/  │
-                    │ (local files)│
-                    └─────────────┘
 ```
 
 ## Directory Structure
 
 ```
 .
-├── frontend/                 # Next.js 14 (App Router)
+├── frontend/                 # Next.js 16 (App Router)
 │   ├── app/                  # Pages and layouts
 │   │   ├── page.tsx          # Main page
 │   │   └── layout.tsx        # Root layout
 │   ├── components/           # React components
 │   │   ├── StatusDisplay.tsx # Status indicator
 │   │   ├── QuickReport.tsx   # Report buttons
-│   │   ├── PhotoUpload.tsx   # Photo upload modal
 │   │   └── BusyTimes.tsx     # Historical patterns
 │   └── lib/
 │       └── api.ts            # API client functions
@@ -58,20 +52,18 @@ docker-compose up --build  # Rebuild after code changes
 │   │   ├── routes/
 │   │   │   ├── status.js     # GET /api/status
 │   │   │   ├── reports.js    # POST /api/report
-│   │   │   ├── photos.js     # Photo CRUD
 │   │   │   └── history.js    # GET /api/history
 │   │   ├── services/
-│   │   │   ├── storage/      # File storage abstraction
-│   │   │   │   ├── index.js  # Exports current impl
-│   │   │   │   └── LocalStorage.js
 │   │   │   └── historyService.js
+│   │   ├── utils/
+│   │   │   └── clientHash.js # Daily-rotating keyed hash of client IPs
 │   │   ├── middleware/
-│   │   │   └── rateLimit.js  # IP-based rate limiting
+│   │   │   └── rateLimit.js  # Rate limiting by hashed IP
 │   │   └── db/
 │   │       ├── index.js      # PostgreSQL connection
-│   │       └── schema.sql    # Database schema
-│   ├── tests/                # Jest tests
-│   └── uploads/              # Photo storage (gitignored)
+│   │       ├── schema.sql    # Database schema
+│   │       └── migrations/   # SQL for upgrading existing databases
+│   └── tests/                # Jest tests
 │
 ├── docker-compose.yml        # Docker orchestration
 └── docs/plans/               # Design documents
@@ -83,9 +75,6 @@ docker-compose up --build  # Rebuild after code changes
 |--------|----------|-------------|
 | GET | `/api/status` | Current line status |
 | POST | `/api/report` | Submit status report |
-| POST | `/api/photos` | Upload photo (multipart) |
-| GET | `/api/photos/:reportId` | Get photos for report |
-| DELETE | `/api/photos/:photoId` | Delete a photo |
 | GET | `/api/history?days=7` | Historical patterns |
 
 ## Database Schema
@@ -97,27 +86,17 @@ reports (
   status VARCHAR(20),        -- 'no_line', 'short_line', 'long_line'
   estimated_people INTEGER,
   created_at TIMESTAMP,
-  ip_address VARCHAR(45),
-  has_photo BOOLEAN
-)
-
--- Photos: stores uploaded images
-photos (
-  id SERIAL PRIMARY KEY,
-  report_id INTEGER REFERENCES reports(id),
-  cloudinary_url TEXT,       -- Actually local URL for now
-  cloudinary_public_id TEXT, -- Filename
-  created_at TIMESTAMP
+  ip_hash CHAR(64)           -- HMAC-SHA256(IP_HASH_SECRET, date:ip); never store raw IPs
 )
 ```
 
 ## Key Design Decisions
 
-1. **Storage Abstraction**: `backend/src/services/storage/` uses a service pattern. Currently uses LocalStorage, designed for easy Cloudinary migration.
+1. **Privacy**: Only status, optional people count and timestamp are stored. Client IPs are hashed with a daily-rotating key (`utils/clientHash.js`) and never stored or logged in plain form.
 
 2. **Status Mapping**: Backend uses lowercase (`no_line`), frontend uses uppercase (`NO_LINE`). Conversion happens in `frontend/lib/api.ts`.
 
-3. **Rate Limiting**: IP-based, configurable via environment. Dev: 10/min, Prod: 1/15min.
+3. **Rate Limiting**: Keyed by the hashed client IP. Dev: 10/min, Prod: 1/15min.
 
 4. **History Analysis**: Calculates busy/quiet hours from reports in last N days. Scores: no_line=0, short_line=1, long_line=2.
 
@@ -141,10 +120,6 @@ npm test -- --coverage  # Coverage report
 1. Update `backend/src/db/schema.sql`
 2. Recreate database or run migrations manually
 
-**Switch to Cloudinary:**
-1. Create `backend/src/services/storage/CloudinaryStorage.js`
-2. Change export in `backend/src/services/storage/index.js`
-
 ## Environment Variables
 
 **Backend (.env):**
@@ -153,6 +128,7 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/uniqlo_line_monitor
 PORT=3001
 FRONTEND_URL=http://localhost:3000
 NODE_ENV=development
+IP_HASH_SECRET=change_me   # openssl rand -hex 32
 ```
 
 **Frontend (.env.local):**

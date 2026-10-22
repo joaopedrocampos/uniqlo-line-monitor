@@ -2,18 +2,21 @@
 
 What I'm planning for the Uniqlo Munich Line Monitor. Hours are rough estimates for one person working evenings and weekends. Order matters more than dates.
 
-**Where things stand:** the MVP works locally with Docker Compose. You can see the current status (the most common report from the last 30 minutes), submit a report, and see a text summary of typical busy times. There's no deployment yet, only the history service and local storage have tests, and an experimental photo-upload feature is still wired in. That feature is being removed.
+**Where things stand:** the MVP works locally with Docker Compose. You can see the current status (the most common report from the last 30 minutes), submit a report, and see a text summary of typical busy times. There's no deployment yet and only the history service and IP hashing have tests. The experimental photo-upload feature has been removed and raw IPs are no longer stored (see Done below).
 
 **Out of scope on purpose:** photos or video of the queue, user accounts or profiles, location tracking, and any AI/ML-based estimation. The app only collects anonymous "no line / short line / long line" taps.
 
 ---
 
-## Phase 1: Cleanup and privacy (~12h)
+## Done
+
+- Removed the photo-upload feature (routes, storage service, UI, `multer`/`uuid`, Cloudinary config). Migration `backend/src/db/migrations/001_remove_photos_hash_ips.sql` drops the `photos` table and `has_photo` column.
+- Stopped storing and logging raw IPs. `reports.ip_hash` holds an HMAC-SHA256 of the IP keyed with `IP_HASH_SECRET` and the current date, used only for rate limiting.
+
+## Phase 1: Cleanup and privacy (~6h)
 
 | Item | Est. |
 |------|------|
-| **Remove the photo-upload feature.** Delete `routes/photos.js`, the storage service and its tests, `PhotoUpload.tsx`, the "Add a Photo" button in `QuickReport.tsx`, the photo helpers in `lib/api.ts`, the `/uploads` static route, the `multer`/`uuid` dependencies and the Cloudinary lines in `.env.example`. Add a migration that drops the `photos` table and the `reports.has_photo` column. Update CLAUDE.md and `docs/plans`. | 3h |
-| **Stop storing raw IP addresses.** Right now `reports.ip_address` keeps the plain IP and the rate limiter logs it on every request. Replace it with a salted hash (salt rotated daily) that's only used for rate limiting, remove IPs from logs, and add a job that clears old rate-limit data. | 3h |
 | **Short privacy note in the app footer** saying what's stored (status, timestamp, temporary hashed rate-limit key) and how long it's kept. | 1h |
 | **Data retention**: delete or aggregate reports older than N days (configurable) so the table doesn't grow forever. | 2h |
 | **Lock down `GET /api/report`.** It's an open debug endpoint with no upper bound on `limit`. Put it behind an admin token or turn it off in production. | 1h |
@@ -70,7 +73,7 @@ What I'm planning for the Uniqlo Munich Line Monitor. Hours are rough estimates 
 
 | Item | Est. |
 |------|------|
-| Keep README, CLAUDE.md and `backend/README.md` in sync with the photo removal and new endpoints. `backend/README.md` repeats the root README and could be trimmed. | 2h |
+| Keep README, CLAUDE.md and `backend/README.md` in sync with new endpoints. `backend/README.md` repeats the root README and could be trimmed. | 2h |
 | Short architecture/decisions doc: how status is calculated, privacy choices, why no photos. | 2h |
 | Screenshot/GIF of the UI in the README. | 1h |
 
@@ -82,4 +85,4 @@ What I'm planning for the Uniqlo Munich Line Monitor. Hours are rough estimates 
 - A PWA "add to home screen" setup with an offline fallback page. (~3h)
 - Opt-in browser push ("tell me when the line is short") that doesn't need an account. (~6h)
 
-**Planned total (Phases 1–6): about 79 hours.**
+**Planned total (Phases 1–6): about 73 hours.**

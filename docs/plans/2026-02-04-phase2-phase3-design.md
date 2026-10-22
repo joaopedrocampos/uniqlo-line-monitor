@@ -1,5 +1,7 @@
 # Phase 2 & Phase 3 Design Document
 
+> **Superseded (Phase 2):** photo uploads were later removed for privacy, since photos of a queue show other people. The Phase 2 sections below are kept as history only. Phase 3 (history patterns) is still current.
+
 ## Overview
 
 This document outlines the design for:

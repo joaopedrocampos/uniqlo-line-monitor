@@ -14,13 +14,12 @@ People in Munich who want to know whether it's worth heading to Uniqlo right now
 - **Crowdsourced Data**: Status is the most common report from the last 30 minutes, with a confidence percentage
 - **Typical Busy Times**: A summary of busy and quiet hours/days, calculated from the last 7 days of reports
 
-> **Note:** The repo still contains an experimental photo-upload feature (`backend/src/routes/photos.js`, `frontend/components/PhotoUpload.tsx`). Photos of a queue can show other people, so I'm dropping this feature instead of building on it. Removing it is on the [roadmap](ROADMAP.md).
+> **Privacy:** the app only stores the status you tap and when. There are no photos (a queue photo shows other people) and no raw IP addresses: rate limiting uses a keyed hash of the IP that rotates daily, so reports can't be linked to a person or across days.
 
 ### Coming Soon
 - Status that refreshes on its own and a "how fresh is this" indicator
 - Store opening hours, so the app doesn't show stale status when the store is closed
 - Busy-times chart by hour and weekday (instead of a text summary only)
-- Privacy cleanup: stop storing raw IP addresses
 - A public deployment
 
 ## Tech Stack
@@ -148,11 +147,9 @@ uniqlo-line-monitor/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/status` | Get current line status |
-| POST | `/api/report` | Submit a new status report (rate limited per IP) |
+| POST | `/api/report` | Submit a new status report (rate limited per client, using a hashed IP) |
 | GET | `/api/report` | List recent reports (debug; will be locked down) |
 | GET | `/api/history?days=7` | Busy/quiet patterns for the last N days (max 30) |
-
-The `/api/photos` endpoints still exist but are being removed (see the note above).
 
 ## Roadmap
 
